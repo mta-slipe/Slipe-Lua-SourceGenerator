@@ -1,0 +1,6 @@
+[submodule "CSharp.lua/CSharp.lua"]
+	path = CSharp.lua/CSharp.lua
+	url = https://github.com/mta-slipe/csharp.lua
+[submodule "slipe-core"]
+	path = slipe-core
+	url = https://github.com/mta-slipe/slipe-core
