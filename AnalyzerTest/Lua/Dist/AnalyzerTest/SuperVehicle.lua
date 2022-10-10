@@ -11,14 +11,14 @@ System.namespace("AnalyzerTest", function (namespace)
     return {
       base = function (out)
         return {
-          out.SlipeLua.Server.Vehicles.Vehicle
+          out.SlipeLua.Client.Vehicles.Vehicle
         }
       end,
       __ctor__ = __ctor__,
       __metadata__ = function (out)
         return {
           methods = {
-            { ".ctor", 0x206, nil, out.SlipeLua.Server.Vehicles.VehicleModel, System.Numerics.Vector3 }
+            { ".ctor", 0x206, nil, out.SlipeLua.Client.Vehicles.VehicleModel, System.Numerics.Vector3 }
           },
           class = { 0x6 }
         }

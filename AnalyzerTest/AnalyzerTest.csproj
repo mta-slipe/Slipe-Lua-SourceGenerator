@@ -9,7 +9,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\CodeGenerator\CodeGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-		<ProjectReference Include="..\slipe-core\Slipe\Core\Source\SlipeServer\SlipeServer.csproj" />
+		<ProjectReference Include="..\slipe-core\Slipe\Core\Source\SlipeClient\SlipeClient.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -20,6 +20,9 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Update="meta.xml">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</None>
+		<None Update="entrypoint.slipe">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

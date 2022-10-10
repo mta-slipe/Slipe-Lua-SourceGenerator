@@ -14,12 +14,15 @@ end
 function postPatches()
     {string.Join("\n", PostPatches)}
 end
+
+prePatches()
 ";
 
         public static string[] PrePatches => new string[]
         {
             InitBitApi,
-            CSharpLuaLoadStringRequire
+            EmptyRequire,
+            AddGlobalMetatable
         };
 
         public static string[] DuringPatches => new string[]
@@ -29,7 +32,7 @@ end
 
         public static string[] PostPatches => new string[]
         {
-            
+            RemoveGlobalMetatable
         };
 
         public static string InitBitApi => @"
@@ -41,6 +44,9 @@ end
         lshift = bitLShift,
         rshift = bitRShift
     }";
+
+        public static string EmptyRequire => @"
+    function require() end";
 
         public static string CSharpLuaLoadStringRequire => @"
     function require(path)
@@ -59,6 +65,13 @@ end
     end
 ";
 
+        public static string AddGlobalMetatable = @"
+    setmetatable(_G, {
+        __newindex = function() 
+            duringPatches()
+        end
+    })";
+
         public static string SystemIsForElements => @"
     isSystemIsPatched = false
     if (not isSytemIsPatched and System and System.is) then
@@ -69,5 +82,8 @@ end
         System.is = is
         isSytemIsPatched = true
     end";
+
+        public static string RemoveGlobalMetatable = @"
+    setmetatable(_G, nil)";
     }
 }

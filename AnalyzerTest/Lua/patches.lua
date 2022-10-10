@@ -10,21 +10,13 @@ function prePatches()
         rshift = bitRShift
     }
 
-    function require(path)
-        local slashedPath = path:gsub("%.", "/")
-        local unslashedBeginPath = slashedPath:gsub("CoreSystem/Lua", "CoreSystem.Lua")
-        local fixedExtensionPath = unslashedBeginPath:gsub("/lua", ".lua")
-        local addedExtensionPath = fixedExtensionPath .. ".lua"
-        local fullpath = addedExtensionPath:gsub(".lua.lua", ".lua")
-        local file = fileOpen(fullpath)
-        local content = fileRead(file, fileGetSize(file))
-        fileClose(file)
-        local comment = "--[[" .. path .. "]]"
-        local result = loadstring(comment..content)()
-        duringPatches()
-        return result
-    end
+    function require() end
 
+    setmetatable(_G, {
+        __newindex = function() 
+            duringPatches()
+        end
+    })
 end
 
 function duringPatches()
@@ -42,4 +34,7 @@ end
 
 function postPatches()
     
+    setmetatable(_G, nil)
 end
+
+prePatches()

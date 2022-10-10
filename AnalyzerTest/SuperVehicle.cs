@@ -1,4 +1,4 @@
-﻿using SlipeLua.Server.Vehicles;
+﻿using SlipeLua.Client.Vehicles;
 using System.Numerics;
 
 namespace AnalyzerTest

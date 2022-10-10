@@ -5,9 +5,6 @@ namespace CodeGenerator
     public class CodeGenerationConstants
     {
         public const string Main = @"
-
-prePatches()
-require(""CoreSystem.Lua/All.lua"")(""CoreSystem.Lua"")
 postPatches()
 __ASSEMBLIES__
 initEvents()

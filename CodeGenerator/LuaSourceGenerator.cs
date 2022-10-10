@@ -29,37 +29,47 @@ namespace CodeGenerator
 
         public void Execute(GeneratorExecutionContext context)
         {
-            var input = Directory.GetCurrentDirectory();
-            var compilation = (CSharpCompilation)context.Compilation;
-            this.compilation = compilation;
-            var output = Path.Combine(input, $"Lua/Dist/{compilation.AssemblyName}");
-            Directory.CreateDirectory(output);
-
-            var isServer = DetermineIfIsServer(compilation);
-            var type = 
-                !isServer.HasValue ? "shared" :
-                isServer.Value ? "server" : "client";
-
-            var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type];
-
-            //System.Diagnostics.Debugger.Launch();
-            var libs = requiredAssemblies.Select(x => $"{x}!").Except(new string[] { compilation.AssemblyName });
-            var compiler = new Compiler(input, output, string.Join(";", libs), null, null, true, "SlipeLua.Shared.Elements.DefaultElementClassAttribute", "")
+            try
             {
-                IsExportMetadata = true,
-                IsModule = !isServer.HasValue,
-            };
-            var syntaxGenerator = compiler.Compile(compilation);
-            GenerateManifestJson(
-                output, 
-                syntaxGenerator.Modules, 
-                syntaxGenerator.ExportTypes, 
-                isServer.HasValue ? requiredAssemblies : new string[0]);
+                var input = Directory.GetCurrentDirectory();
+                var compilation = (CSharpCompilation)context.Compilation;
+                this.compilation = compilation;
+                var output = Path.Combine(input, $"Lua/Dist/{compilation.AssemblyName}");
+                Directory.CreateDirectory(output);
 
-            if (isServer.HasValue)
+                var isServer = DetermineIfIsServer(compilation);
+                var type = 
+                    !isServer.HasValue ? "shared" :
+                    isServer.Value ? "server" : "client";
+
+                var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type];
+
+                //System.Diagnostics.Debugger.Launch();
+                var libs = requiredAssemblies.Select(x => $"{x}!").Except(new string[] { compilation.AssemblyName });
+                var compiler = new Compiler(input, output, string.Join(";", libs), null, null, true, "SlipeLua.Shared.Elements.DefaultElementClassAttribute", "")
+                {
+                    IsExportMetadata = true,
+                    IsModule = !isServer.HasValue,
+                };
+                var syntaxGenerator = compiler.Compile(compilation);
+                GenerateManifestJson(
+                    output, 
+                    syntaxGenerator.Modules, 
+                    syntaxGenerator.ExportTypes, 
+                    isServer.HasValue ? requiredAssemblies : new string[0]);
+
+                    if (isServer.HasValue)
+                    {
+                        GenerateMetaXml("./", type, requiredAssemblies);
+                        GenerateEntryPointFile("./", compilation.AssemblyName);
+                        GenerateLuaFiles("./", type, compilation.AssemblyName, requiredAssemblies);
+                    }
+
+                }
+            catch (System.Exception e)
             {
-                GenerateMetaXml("./", type, requiredAssemblies);
-                GenerateLuaFiles("./", type, compilation.AssemblyName, requiredAssemblies);
+                System.Diagnostics.Debugger.Launch();
+                throw;
             }
         }
 
@@ -99,6 +109,11 @@ namespace CodeGenerator
             File.WriteAllText(Path.Combine(outputDirectory, "manifest.json"), content);
         }
 
+        private void GenerateEntryPointFile(string outputDirectory, string assemblyName)
+        {
+            File.WriteAllText(Path.Combine(outputDirectory, "entrypoint.slipe"), assemblyName);
+        }
+
         private void GenerateMetaXml(string outputDirectory, string type, IEnumerable<string> requiredAssemblies)
         {
             var meta = new XmlDocument();
@@ -106,14 +121,14 @@ namespace CodeGenerator
             var root = meta.CreateElement("meta");
             meta.AppendChild(root);
 
-            foreach (var assembly in requiredAssemblies)
-            {
-                var manifestLocation = Path.Combine(outputDirectory, "Lua/Dist", assembly, "manifest.json");
-                var manifest = JsonConvert.DeserializeObject<ManifestJson>(File.ReadAllText(manifestLocation));
-                var modules = manifest.Modules;
-                foreach (var module in modules)
-                    AddScript(meta, root, Path.Combine(outputDirectory, "Lua/Dist", module), type);
-            }
+            //foreach (var assembly in requiredAssemblies)
+            //{
+            //    var manifestLocation = Path.Combine(outputDirectory, "Lua/Dist", assembly, "manifest.json");
+            //    var manifest = JsonConvert.DeserializeObject<ManifestJson>(File.ReadAllText(manifestLocation));
+            //    var modules = manifest.Modules;
+            //    foreach (var module in modules)
+            //        AddScript(meta, root, Path.Combine(outputDirectory, "Lua/Dist", module), type);
+            //}
 
             AddScript(meta, root, "Lua/patches.lua", type);
             AddScript(meta, root, "Lua/main.lua", type);
@@ -132,9 +147,9 @@ namespace CodeGenerator
             var assemblies = "";
             var additionalAssemblies = requiredAssemblies;
             foreach (var assembly in additionalAssemblies)
-                assemblies += $"require(\"Lua/Dist/{assembly}/manifest.lua\")(\"Lua/Dist/{assembly}\")\n";
+                assemblies += $"{assembly}Manifest()\n";
 
-            assemblies += $"require(\"Lua/Dist/{thisAssembly}/manifest.lua\")(\"Lua/Dist/{thisAssembly}\")\n";
+            assemblies += $"{thisAssembly}Manifest()\n";
 
             var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
             var entryPointClass = entryPoint.ContainingType.Name;
