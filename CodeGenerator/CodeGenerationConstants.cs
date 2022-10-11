@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace CodeGenerator
+namespace SlipeLua.CodeGenerator
 {
     public class CodeGenerationConstants
     {

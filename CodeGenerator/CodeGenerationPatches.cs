@@ -1,4 +1,4 @@
-﻿namespace CodeGenerator
+﻿namespace SlipeLua.CodeGenerator
 {
     public class CodeGenerationPatches
     {

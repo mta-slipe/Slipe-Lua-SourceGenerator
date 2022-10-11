@@ -13,8 +13,8 @@ function prePatches()
     function require() end
 
     setmetatable(_G, {
-        __newindex = function() 
-            duringPatches()
+        __newindex = function(...) 
+            duringPatches(...)
         end
     })
 end

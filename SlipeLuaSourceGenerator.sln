@@ -5,7 +5,7 @@ VisualStudioVersion = 17.1.32319.34
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AnalyzerTest", "AnalyzerTest\AnalyzerTest.csproj", "{A3BF8A94-6245-495D-82AB-F745BF9916A0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CodeGenerator", "CodeGenerator\CodeGenerator.csproj", "{B393DE43-F432-48AE-8368-0B42C4E403F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SlipeLua.CodeGenerator", "CodeGenerator\SlipeLua.CodeGenerator.csproj", "{B393DE43-F432-48AE-8368-0B42C4E403F5}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CSharp.lua", "CSharp.lua\CSharp.lua\CSharp.lua\CSharp.lua.csproj", "{071CBEC9-77B5-4FF0-B9BE-71FEDBFC4F35}"
 EndProject
