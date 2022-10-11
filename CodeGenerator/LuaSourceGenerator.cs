@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -32,7 +33,9 @@ namespace SlipeLua.CodeGenerator
             try
             {
                 //System.Diagnostics.Debugger.Launch();
-                var input = Directory.GetCurrentDirectory();
+                var input = GetLongestCommonPrefix(context.Compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath)).ToArray());
+                Directory.SetCurrentDirectory(input);
+
                 var compilation = (CSharpCompilation)context.Compilation;
                 this.compilation = compilation;
                 var output = Path.Combine(input, $"Lua/Dist/{compilation.AssemblyName}");
@@ -73,6 +76,27 @@ namespace SlipeLua.CodeGenerator
             }
         }
 
+        public static string GetBaseFilepath(Compilation compilation)
+        {
+            return GetLongestCommonPrefix(compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath)).ToArray());
+        }
+
+        private static string GetLongestCommonPrefix(string[] s)
+        {
+            int k = s[0].Length;
+            for (int i = 1; i < s.Length; i++)
+            {
+                k = Math.Min(k, s[i].Length);
+                for (int j = 0; j < k; j++)
+                    if (s[i][j] != s[0][j])
+                    {
+                        k = j;
+                        break;
+                    }
+            }
+            return s[0].Substring(0, k);
+        }
+
         private bool? DetermineIfIsServer(CSharpCompilation compilation)
         {
             var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
@@ -82,7 +106,10 @@ namespace SlipeLua.CodeGenerator
                 var attributes = method.ChildNodes()
                     .Where(x => x is AttributeListSyntax)
                     .Select(x => (AttributeListSyntax)x)
-                    .First();
+                    .FirstOrDefault();
+
+                if (attributes == null)
+                    return null;
 
                 if (attributes.ChildNodes().Any(x => (x as AttributeSyntax)?.Name.ToString() == "ServerEntryPoint"))
                     return true;
