@@ -23,3 +23,4 @@ function AnalyzerTestManifest(path)
     }
   })
 end
+AnalyzerTestManifest()

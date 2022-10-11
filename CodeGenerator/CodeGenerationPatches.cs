@@ -7,8 +7,13 @@ function prePatches()
     {string.Join("\n", PrePatches)}
 end
 
-function duringPatches()
-    {string.Join("\n", DuringPatches)}
+local patches = {{}}
+
+function duringPatches(t, key, value)
+
+    { string.Join("\n", DuringPatches)}
+
+    rawset(t, key, value)
 end
 
 function postPatches()
@@ -67,20 +72,20 @@ prePatches()
 
         public static string AddGlobalMetatable = @"
     setmetatable(_G, {
-        __newindex = function() 
-            duringPatches()
+        __newindex = function(...) 
+            duringPatches(...)
         end
     })";
 
-        public static string SystemIsForElements => @"
-    isSystemIsPatched = false
-    if (not isSytemIsPatched and System and System.is) then
+        public static string SystemIsForElements => @"    
+    if (not patches.systemIs and System and System.is) then
         local oldIs = System.is;
         local function is(obj, T)
             return type(obj) == ""userdata"" and T == SlipeLua.MtaDefinitions.MtaElement or oldIs(obj, T)
         end
         System.is = is
-        isSytemIsPatched = true
+        patches.systemIs = true
+        outputDebugString(""System.is patch applied"")
     end";
 
         public static string RemoveGlobalMetatable = @"

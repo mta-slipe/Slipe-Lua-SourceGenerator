@@ -31,6 +31,7 @@ namespace CodeGenerator
         {
             try
             {
+                //System.Diagnostics.Debugger.Launch();
                 var input = Directory.GetCurrentDirectory();
                 var compilation = (CSharpCompilation)context.Compilation;
                 this.compilation = compilation;
@@ -44,7 +45,6 @@ namespace CodeGenerator
 
                 var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type];
 
-                //System.Diagnostics.Debugger.Launch();
                 var libs = requiredAssemblies.Select(x => $"{x}!").Except(new string[] { compilation.AssemblyName });
                 var compiler = new Compiler(input, output, string.Join(";", libs), null, null, true, "SlipeLua.Shared.Elements.DefaultElementClassAttribute", "")
                 {
@@ -66,7 +66,7 @@ namespace CodeGenerator
                     }
 
                 }
-            catch (System.Exception e)
+            catch (System.Exception)
             {
                 System.Diagnostics.Debugger.Launch();
                 throw;
@@ -145,11 +145,12 @@ namespace CodeGenerator
         private string CreateMainFile(string type, string thisAssembly, IEnumerable<string> requiredAssemblies)
         {
             var assemblies = "";
-            var additionalAssemblies = requiredAssemblies;
-            foreach (var assembly in additionalAssemblies)
-                assemblies += $"{assembly}Manifest()\n";
+            //var additionalAssemblies = requiredAssemblies;
 
-            assemblies += $"{thisAssembly}Manifest()\n";
+            //foreach (var assembly in additionalAssemblies)
+            //    assemblies += $"{assembly}Manifest()\n";
+
+            //assemblies += $"{thisAssembly}Manifest()\n";
 
             var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
             var entryPointClass = entryPoint.ContainingType.Name;
