@@ -1,0 +1,62 @@
+trigger:
+- main
+pr:
+- main
+
+
+variables:
+  solution: 'SlipeLuaSourceGenerator.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+jobs:   
+- job: 'dotnet_build'
+  pool:
+    vmImage: 'windows-2022'
+
+  steps:
+  - task: CmdLine@2
+    displayName: 'Git submodule init'
+    inputs:
+      script: 'git submodule init'
+
+  - task: UseDotNet@2
+    inputs:
+      packageType: 'sdk'
+      version: '6.x'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet restore'
+    inputs:
+      command: 'restore'
+      feedsToUse: 'select'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet build'
+    inputs:
+      command: 'build'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet pack'
+    inputs:
+      command: 'pack'
+      packagesToPack: '**/SlipeLua.CSharpLua.csproj;**/SlipeLua.CodeGenerator.csproj;**/SlipeMTADefinitions.csproj;**/SlipeShared.TestTools.csproj;**/SlipeClient.csproj;**/SlipeSql.csproj;**/SlipeServer.csproj'
+      versioningScheme: 'byPrereleaseNumber'
+      majorVersion: '0'
+      minorVersion: '1'
+      patchVersion: '0'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'dotnet publish'
+    inputs:
+      command: 'publish'
+      publishWebProjects: false
+      projects: '**/*.sln'
+      arguments: '--output $(Build.ArtifactStagingDirectory)'
+      
+  - task: PublishBuildArtifacts@1
+    displayName: 'publish artifacts'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'
