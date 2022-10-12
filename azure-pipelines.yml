@@ -51,7 +51,7 @@ jobs:
     inputs:
       command: 'publish'
       publishWebProjects: false
-      projects: '**/*.sln'
+      projects: 'SlipeLuaSourceGenerator.sln'
       arguments: '--output $(Build.ArtifactStagingDirectory)'
       
   - task: PublishBuildArtifacts@1
