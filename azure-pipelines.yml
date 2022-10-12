@@ -40,7 +40,7 @@ jobs:
     displayName: 'dotnet pack'
     inputs:
       command: 'pack'
-      packagesToPack: '**/SlipeLua.CSharpLua.csproj;**/SlipeLua.CodeGenerator.csproj;**/SlipeMTADefinitions.csproj;**/SlipeShared.TestTools.csproj;**/SlipeClient.csproj;**/SlipeSql.csproj;**/SlipeServer.csproj'
+      packagesToPack: '**/SlipeLua.CSharpLua.csproj;**/SlipeLua.CodeGenerator.csproj;**/SlipeMTADefinitions.csproj;**/SlipeShared.csproj;**/SlipeClient.csproj;**/SlipeSql.csproj;**/SlipeServer.csproj'
       versioningScheme: 'byPrereleaseNumber'
       majorVersion: '0'
       minorVersion: '1'
