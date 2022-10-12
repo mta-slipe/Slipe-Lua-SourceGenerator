@@ -16,9 +16,9 @@ __ENTRYPOINT__
 
         public static Dictionary<string, string[]> StandardAssembliesByType { get; } = new Dictionary<string, string[]>()
         {
-            ["shared"] = new string[] { "SlipeMTADefinitions", "SlipeShared", "SlipeServer", "SlipeSql", "SlipeClient" },
-            ["server"] = new string[] { "SlipeMTADefinitions", "SlipeShared", "SlipeServer", "SlipeSql" },
-            ["client"] = new string[] { "SlipeMTADefinitions", "SlipeShared", "SlipeClient" }
+            ["shared"] = new string[] { "SlipeLua.MTADefinitions", "SlipeLua.Shared", "SlipeLua.Server", "SlipeLua.Sql", "SlipeLua.Client" },
+            ["server"] = new string[] { "SlipeLua.MTADefinitions", "SlipeLua.Shared", "SlipeLua.Server", "SlipeLua.Sql" },
+            ["client"] = new string[] { "SlipeLua.MTADefinitions", "SlipeLua.Shared", "SlipeLua.Client" }
         };
     }
 }

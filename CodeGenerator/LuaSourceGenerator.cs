@@ -69,9 +69,13 @@ namespace SlipeLua.CodeGenerator
                     }
 
                 }
-            catch (System.Exception)
+            catch (System.Exception e)
             {
-                System.Diagnostics.Debugger.Launch();
+                if (Environment.GetEnvironmentVariable("SLIPE-LUA-DEBUG") != "ENABLED")
+                    System.Diagnostics.Debugger.Launch();
+
+                context.ReportDiagnostic(Diagnostic.Create("SLIPE-LUA-ERROR", "Errors", e.Message, DiagnosticSeverity.Warning, DiagnosticSeverity.Warning, true, 1));
+
                 throw;
             }
         }

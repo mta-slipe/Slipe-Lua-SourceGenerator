@@ -13,10 +13,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Lua\**\*">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</None>
-		<None Update="Lua\*.lua">
+		<None Update="Lua\*">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
 		<None Update="meta.xml">
