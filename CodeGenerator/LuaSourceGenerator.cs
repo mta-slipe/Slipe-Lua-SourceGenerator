@@ -71,7 +71,7 @@ namespace SlipeLua.CodeGenerator
                 }
             catch (System.Exception e)
             {
-                if (Environment.GetEnvironmentVariable("SLIPE-LUA-DEBUG") != "ENABLED")
+                if (Environment.GetEnvironmentVariable("SLIPE-LUA-DEBUG") == "ENABLED")
                     System.Diagnostics.Debugger.Launch();
 
                 context.ReportDiagnostic(Diagnostic.Create("SLIPE-LUA-ERROR", "Errors", e.Message, DiagnosticSeverity.Warning, DiagnosticSeverity.Warning, true, 1));

@@ -13,7 +13,7 @@ namespace AnalyzerTest
         {
             Console.WriteLine("Hello world!");
             var worldObject = new WorldObject(321, new Vector3(0, 0, 5));
-            var vehicle = new SuperVehicle(VehicleModel.Cars.Alpha, new Vector3(0, 0, 3));
+            var vehicle = new Vehicle(VehicleModel.Cars.Alpha, new Vector3(0, 0, 3));
         }
     }
 }
