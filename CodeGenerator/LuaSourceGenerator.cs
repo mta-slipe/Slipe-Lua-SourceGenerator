@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Newtonsoft.Json;
+using SlipeLua.CodeGenerator.Extensions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,10 +34,14 @@ namespace SlipeLua.CodeGenerator
             try
             {
                 //System.Diagnostics.Debugger.Launch();
+
+                var compilation = (CSharpCompilation)context.Compilation;
+                if (!ShouldCompileToLua(compilation))
+                    return;
+
                 var input = GetLongestCommonPrefix(context.Compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath)).ToArray());
                 Directory.SetCurrentDirectory(input);
 
-                var compilation = (CSharpCompilation)context.Compilation;
                 this.compilation = compilation;
                 var output = Path.Combine(input, $"Lua/Dist/{compilation.AssemblyName}");
                 Directory.CreateDirectory(output);
@@ -100,6 +105,13 @@ namespace SlipeLua.CodeGenerator
                     }
             }
             return s[0].Substring(0, k);
+        }
+
+        private bool ShouldCompileToLua(CSharpCompilation compilation)
+        {
+            return compilation.SyntaxTrees.Any(x => 
+                x.ContainsAttribute(new string[] { "CompileToLua", "ClientEntryPoint", "ServerEntryPoint", "RequiresAssembly" }) 
+            );
         }
 
         private bool? DetermineIfIsServer(CSharpCompilation compilation)
