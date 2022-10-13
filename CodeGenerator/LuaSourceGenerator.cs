@@ -46,7 +46,8 @@ namespace SlipeLua.CodeGenerator
                     !isServer.HasValue ? "shared" :
                     isServer.Value ? "server" : "client";
 
-                var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type];
+                var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type]
+                    .Concat(DetermineAdditionalRequiredAssemblies(compilation));
 
                 var libs = requiredAssemblies.Select(x => $"{x}!").Except(new string[] { compilation.AssemblyName });
                 var compiler = new Compiler(input, output, string.Join(";", libs), null, null, true, "SlipeLua.Shared.Elements.DefaultElementClassAttribute", "")
@@ -65,7 +66,7 @@ namespace SlipeLua.CodeGenerator
                     {
                         GenerateMetaXml("./", type, requiredAssemblies);
                         GenerateEntryPointFile("./", compilation.AssemblyName);
-                        GenerateLuaFiles("./", type, compilation.AssemblyName, requiredAssemblies);
+                        GenerateLuaFiles("./");
                     }
 
                 }
@@ -110,18 +111,43 @@ namespace SlipeLua.CodeGenerator
                 var attributes = method.ChildNodes()
                     .Where(x => x is AttributeListSyntax)
                     .Select(x => (AttributeListSyntax)x)
-                    .FirstOrDefault();
+                    .SelectMany(x => x.ChildNodes());
 
                 if (attributes == null)
                     return null;
 
-                if (attributes.ChildNodes().Any(x => (x as AttributeSyntax)?.Name.ToString() == "ServerEntryPoint"))
+                if (attributes.Any(x => (x as AttributeSyntax)?.Name.ToString() == "ServerEntryPoint"))
                     return true;
 
-                if (attributes.ChildNodes().Any(x => (x as AttributeSyntax)?.Name.ToString() == "ClientEntryPoint"))
+                if (attributes.Any(x => (x as AttributeSyntax)?.Name.ToString() == "ClientEntryPoint"))
                     return false;
             }
             return null;
+        }
+
+        private IEnumerable<string> DetermineAdditionalRequiredAssemblies(CSharpCompilation compilation)
+        {
+            var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
+            if (entryPoint != null)
+            {
+                var method = entryPoint.GetDeclaringSyntaxNode();
+                var attributes = method.ChildNodes()
+                    .Where(x => x is AttributeListSyntax)
+                    .Select(x => (AttributeListSyntax)x)
+                    .SelectMany(x => x.ChildNodes());
+
+                if (attributes == null)
+                    return Enumerable.Empty<string>();
+
+                return attributes
+                    .Select(x => x as AttributeSyntax)
+                    .Where(x => x != null)
+                    .Where(x => x.Name.ToString() == "RequiresAssembly")
+                    .Select(x => x.ArgumentList.Arguments.First())
+                    .Select(x => x.Expression as LiteralExpressionSyntax)
+                    .Select(x => x.Token.ValueText);
+            }
+            return Enumerable.Empty<string>();
         }
 
         private void GenerateManifestJson(
@@ -145,6 +171,25 @@ namespace SlipeLua.CodeGenerator
             File.WriteAllText(Path.Combine(outputDirectory, "entrypoint.slipe"), assemblyName);
         }
 
+        private void GenerateLuaFiles(string outputDirectory)
+        {
+            File.WriteAllText(Path.Combine(outputDirectory, "Lua/patches.lua"), CodeGenerationConstants.Patches);
+            File.WriteAllText(Path.Combine(outputDirectory, "Lua/main.lua"), CreateMainFile());
+        }
+
+        private string CreateMainFile()
+        {
+            var assemblies = "";
+
+            var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
+            var entryPointClass = entryPoint.ContainingType.Name;
+            var entryPointNamespace = entryPoint.ContainingNamespace.Name;
+
+            return CodeGenerationConstants.Main
+                .Replace("__ASSEMBLIES__", assemblies)
+                .Replace("__ENTRYPOINT__", $"{entryPointNamespace}.{entryPointClass}.{entryPoint.Name}()");
+        }
+
         private void GenerateMetaXml(string outputDirectory, string type, IEnumerable<string> requiredAssemblies)
         {
             var meta = new XmlDocument();
@@ -152,44 +197,10 @@ namespace SlipeLua.CodeGenerator
             var root = meta.CreateElement("meta");
             meta.AppendChild(root);
 
-            //foreach (var assembly in requiredAssemblies)
-            //{
-            //    var manifestLocation = Path.Combine(outputDirectory, "Lua/Dist", assembly, "manifest.json");
-            //    var manifest = JsonConvert.DeserializeObject<ManifestJson>(File.ReadAllText(manifestLocation));
-            //    var modules = manifest.Modules;
-            //    foreach (var module in modules)
-            //        AddScript(meta, root, Path.Combine(outputDirectory, "Lua/Dist", module), type);
-            //}
-
             AddScript(meta, root, "Lua/patches.lua", type);
             AddScript(meta, root, "Lua/main.lua", type);
 
             meta.Save(Path.Combine(outputDirectory, "meta.xml"));
-        }
-
-        private void GenerateLuaFiles(string outputDirectory, string type, string thisAssembly, IEnumerable<string> requiredAssemblies)
-        {
-            File.WriteAllText(Path.Combine(outputDirectory, "Lua/patches.lua"), CodeGenerationConstants.Patches);
-            File.WriteAllText(Path.Combine(outputDirectory, "Lua/main.lua"), CreateMainFile(type, thisAssembly, requiredAssemblies));
-        }
-
-        private string CreateMainFile(string type, string thisAssembly, IEnumerable<string> requiredAssemblies)
-        {
-            var assemblies = "";
-            //var additionalAssemblies = requiredAssemblies;
-
-            //foreach (var assembly in additionalAssemblies)
-            //    assemblies += $"{assembly}Manifest()\n";
-
-            //assemblies += $"{thisAssembly}Manifest()\n";
-
-            var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
-            var entryPointClass = entryPoint.ContainingType.Name;
-            var entryPointNamespace = entryPoint.ContainingNamespace.Name;
-            //System.Diagnostics.Debugger.Launch();
-            return CodeGenerationConstants.Main
-                .Replace("__ASSEMBLIES__", assemblies)
-                .Replace("__ENTRYPOINT__", $"{entryPointNamespace}.{entryPointClass}.{entryPoint.Name}()");
         }
 
         private void AddScript(XmlDocument document, XmlElement parent, string path, string type)
