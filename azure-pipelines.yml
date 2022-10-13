@@ -31,7 +31,11 @@ jobs:
       command: 'restore'
       feedsToUse: 'select'
 
-  - task: DotNetCoreCLI@2
+  - task: MSBuild@1 # We do an MSBuild to make sure the source generator runs properly
+    inputs:
+      solution: 'SlipeLuaSourceGenerator.sln'
+
+  - task: DotNetCoreCLI@2 # The dotnet build makes sure the Lua files are properly included in the outputs
     displayName: 'dotnet build'
     inputs:
       command: 'build'
