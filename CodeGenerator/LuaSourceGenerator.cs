@@ -195,7 +195,7 @@ namespace SlipeLua.CodeGenerator
 
             var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
             var entryPointClass = entryPoint.ContainingType.Name;
-            var entryPointNamespace = entryPoint.ContainingNamespace.Name;
+            var entryPointNamespace = entryPoint.ContainingNamespace.ToDisplayString();
 
             return CodeGenerationConstants.Main
                 .Replace("__ASSEMBLIES__", assemblies)

@@ -1,10 +1,9 @@
 ﻿using SlipeLua.Client.GameWorld;
-using SlipeLua.Client.Peds;
 using SlipeLua.Client.Vehicles;
-using System.Numerics;
 using SlipeLua.Shared.Attributes;
+using System.Numerics;
 
-namespace AnalyzerTest
+namespace AnalyzerTest.Foo
 {
     public class Program
     {

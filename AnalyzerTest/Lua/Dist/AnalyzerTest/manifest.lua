@@ -7,10 +7,10 @@ function AnalyzerTestManifest(path)
       "SuperVehicle"
     },
     types = {
-      "AnalyzerTest.Program",
+      "AnalyzerTest.Foo.Program",
       "AnalyzerTest.SuperVehicle"
     },
-    Main = "AnalyzerTest.Program.Main",
+    Main = "AnalyzerTest.Foo.Program.Main",
     assembly = {
       name = "AnalyzerTest",
       Company = "AnalyzerTest",

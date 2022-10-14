@@ -4,7 +4,7 @@ local SlipeLuaClientGameWorld = SlipeLua.Client.GameWorld
 local SlipeLuaClientVehicles = SlipeLua.Client.Vehicles
 local SlipeLuaVehicleModel = SlipeLua.Client.Vehicles.VehicleModel
 local SystemNumerics = System.Numerics
-System.namespace("AnalyzerTest", function (namespace)
+System.namespace("AnalyzerTest.Foo", function (namespace)
   namespace.class("Program", function (namespace)
     local Main
     Main = function (args)

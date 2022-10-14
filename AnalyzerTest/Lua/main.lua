@@ -2,5 +2,5 @@
 postPatches()
 
 initEvents()
-AnalyzerTest.Program.Main()
+AnalyzerTest.Foo.Program.Main()
 
