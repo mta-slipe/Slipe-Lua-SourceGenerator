@@ -78,14 +78,27 @@ prePatches()
     })";
 
         public static string SystemIsForElements => @"    
-    if (not patches.systemIs and System and System.is) then
-        local oldIs = System.is;
-        local function is(obj, T)
-            return type(obj) == ""userdata"" and T == SlipeLua.MtaDefinitions.MtaElement or oldIs(obj, T)
+    if (not patches.systemIs and key == ""System"") then
+        if (not getmetatable(value)) then
+            setmetatable(value, {})
         end
-        System.is = is
-        patches.systemIs = true
-        outputDebugString(""System.is patch applied"")
+
+        getmetatable(value).__newindex = function(systemT, systemKey, systemValue)
+
+            if systemKey == ""is"" then
+                local function localIs(obj, T)
+                    return type(obj) == ""userdata"" or systemValue(obj, T)
+                end
+
+                rawset(systemT, systemKey, localIs)
+                patches.systemIs = true
+                return
+            end
+
+            rawset(systemT, systemKey, systemValue)
+        end
+
+        patches.system = true
     end";
 
         public static string RemoveGlobalMetatable = @"
