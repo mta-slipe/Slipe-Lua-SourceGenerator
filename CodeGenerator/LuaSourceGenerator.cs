@@ -2,225 +2,373 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Newtonsoft.Json;
 using SlipeLua.CodeGenerator.Extensions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Xml;
 
-namespace SlipeLua.CodeGenerator
+namespace SlipeLua.CodeGenerator;
+
+public struct ManifestJson
 {
-    public struct ManifestJson
+    public string[] Modules { get; set; }
+    public string[] Types { get; set; }
+    public string[] RequiredAssemblies { get; set; }
+}
+
+[Generator]
+public class LuaSourceGenerator : ISourceGenerator
+{
+    private CSharpCompilation? compilation;
+
+    public void Initialize(GeneratorInitializationContext context)
     {
-        public string[] Modules { get; set; }
-        public string[] Types { get; set; }
-        public string[] RequiredAssemblies { get; set; }
+
     }
 
-    [Generator]
-    public class LuaSourceGenerator : ISourceGenerator
+    public void Execute(GeneratorExecutionContext context)
     {
-        private CSharpCompilation compilation;
-
-        public void Initialize(GeneratorInitializationContext context)
+        try
         {
+            //if (!System.Diagnostics.Debugger.IsAttached)
+            //    System.Diagnostics.Debugger.Launch();
+
+            var compilation = (CSharpCompilation)context.Compilation;
+            if (!ShouldCompileToLua(compilation))
+                return;
+
+            if (compilation.AssemblyName == null)
+                throw new Exception("Assembly name is null, cannot compile to Lua.");
+
+            var input = GetLongestCommonPrefix([.. context.Compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath))]);
+            Directory.SetCurrentDirectory(input);
+
+            this.compilation = compilation;
+            var output = Path.Combine(input, $"Lua/Dist/{compilation.AssemblyName}");
+            Directory.CreateDirectory(output);
+
+            var isServer = DetermineIfIsServer(compilation);
+            var type = 
+                !isServer.HasValue ? "shared" :
+                isServer.Value ? "server" : "client";
+
+            var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type]
+                .Concat(DetermineAdditionalRequiredAssemblies(compilation));
+
+            var libs = requiredAssemblies.Select(x => $"{x}!")
+                .Except([compilation.AssemblyName]);
+
+            var compiler = new Compiler(input, output, string.Join(";", libs), null, null, true, "SlipeLua.Shared.Elements.DefaultElementClassAttribute", "")
+            {
+                IsExportMetadata = true,
+                IsModule = !isServer.HasValue,
+            };
+            var syntaxGenerator = compiler.Compile(compilation);
+            GenerateManifestJson(
+                output, 
+                syntaxGenerator.Modules, 
+                syntaxGenerator.ExportTypes, 
+                isServer.HasValue ? requiredAssemblies : []);
+
+            if (isServer.HasValue)
+            {
+                GenerateFullPackage("./", type, requiredAssemblies);
+                GenerateEntryPointFile("./", compilation.AssemblyName);
+                GenerateLuaFiles("./");
+            }
 
         }
-
-        public void Execute(GeneratorExecutionContext context)
+        catch (System.Exception e)
         {
-            try
-            {
-                //System.Diagnostics.Debugger.Launch();
+            //if (Environment.GetEnvironmentVariable("SLIPE-LUA-DEBUG") == "ENABLED")
+            //    System.Diagnostics.Debugger.Launch();
 
-                var compilation = (CSharpCompilation)context.Compilation;
-                if (!ShouldCompileToLua(compilation))
-                    return;
+            context.ReportDiagnostic(Diagnostic.Create("SLIPE01", "Errors", e.Message, DiagnosticSeverity.Warning, DiagnosticSeverity.Warning, true, 1));
 
-                var input = GetLongestCommonPrefix(context.Compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath)).ToArray());
-                Directory.SetCurrentDirectory(input);
+            throw;
+        }
+    }
 
-                this.compilation = compilation;
-                var output = Path.Combine(input, $"Lua/Dist/{compilation.AssemblyName}");
-                Directory.CreateDirectory(output);
+    public static string GetBaseFilepath(Compilation compilation)
+    {
+        return GetLongestCommonPrefix([.. compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath))]);
+    }
 
-                var isServer = DetermineIfIsServer(compilation);
-                var type = 
-                    !isServer.HasValue ? "shared" :
-                    isServer.Value ? "server" : "client";
-
-                var requiredAssemblies = CodeGenerationConstants.StandardAssembliesByType[type]
-                    .Concat(DetermineAdditionalRequiredAssemblies(compilation));
-
-                var libs = requiredAssemblies.Select(x => $"{x}!").Except(new string[] { compilation.AssemblyName });
-                var compiler = new Compiler(input, output, string.Join(";", libs), null, null, true, "SlipeLua.Shared.Elements.DefaultElementClassAttribute", "")
+    private static string GetLongestCommonPrefix(string[] s)
+    {
+        int k = s[0].Length;
+        for (int i = 1; i < s.Length; i++)
+        {
+            k = Math.Min(k, s[i].Length);
+            for (int j = 0; j < k; j++)
+                if (s[i][j] != s[0][j])
                 {
-                    IsExportMetadata = true,
-                    IsModule = !isServer.HasValue,
-                };
-                var syntaxGenerator = compiler.Compile(compilation);
-                GenerateManifestJson(
-                    output, 
-                    syntaxGenerator.Modules, 
-                    syntaxGenerator.ExportTypes, 
-                    isServer.HasValue ? requiredAssemblies : new string[0]);
-
-                    if (isServer.HasValue)
-                    {
-                        GenerateMetaXml("./", type, requiredAssemblies);
-                        GenerateEntryPointFile("./", compilation.AssemblyName);
-                        GenerateLuaFiles("./");
-                    }
-
+                    k = j;
+                    break;
                 }
-            catch (System.Exception e)
-            {
-                if (Environment.GetEnvironmentVariable("SLIPE-LUA-DEBUG") == "ENABLED")
-                    System.Diagnostics.Debugger.Launch();
-
-                context.ReportDiagnostic(Diagnostic.Create("SLIPE-LUA-ERROR", "Errors", e.Message, DiagnosticSeverity.Warning, DiagnosticSeverity.Warning, true, 1));
-
-                throw;
-            }
         }
+        return s[0].Substring(0, k);
+    }
 
-        public static string GetBaseFilepath(Compilation compilation)
+    private bool ShouldCompileToLua(CSharpCompilation compilation)
+    {
+        return compilation.SyntaxTrees.Any(x => 
+            x.ContainsAttribute(["CompileToLua", "ClientEntryPoint", "ServerEntryPoint", "RequiresAssembly"])
+        );
+    }
+
+    private bool? DetermineIfIsServer(CSharpCompilation compilation)
+    {
+        var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
+        if (entryPoint != null)
         {
-            return GetLongestCommonPrefix(compilation.SyntaxTrees.Select(x => Path.GetDirectoryName(x.FilePath)).ToArray());
+            var method = entryPoint.GetDeclaringSyntaxNode();
+            var attributes = method.ChildNodes()
+                .Where(x => x is AttributeListSyntax)
+                .Select(x => (AttributeListSyntax)x)
+                .SelectMany(x => x.ChildNodes());
+
+            if (attributes == null)
+                return null;
+
+            if (attributes.Any(x => (x as AttributeSyntax)?.Name.ToString() == "ServerEntryPoint"))
+                return true;
+
+            if (attributes.Any(x => (x as AttributeSyntax)?.Name.ToString() == "ClientEntryPoint"))
+                return false;
         }
+        return null;
+    }
 
-        private static string GetLongestCommonPrefix(string[] s)
+    private IEnumerable<string> DetermineAdditionalRequiredAssemblies(CSharpCompilation compilation)
+    {
+        var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
+        if (entryPoint != null)
         {
-            int k = s[0].Length;
-            for (int i = 1; i < s.Length; i++)
+            var method = entryPoint.GetDeclaringSyntaxNode();
+            var attributes = method.ChildNodes()
+                .Where(x => x is AttributeListSyntax)
+                .Select(x => (AttributeListSyntax)x)
+                .SelectMany(x => x.ChildNodes());
+
+            if (attributes == null)
+                return [];
+
+            return attributes
+                .Select(x => x as AttributeSyntax)
+                .Where(x => x != null)
+                .Cast<AttributeSyntax>()
+                .Where(x => x.Name.ToString() == "RequiresAssembly")
+                .Select(x => x.ArgumentList?.Arguments.First())
+                .Select(x => x?.Expression as LiteralExpressionSyntax)
+                .Select(x => x?.Token.ValueText)
+                .Where(x => x is not null)
+                .Cast<string>();
+        }
+        return [];
+    }
+
+    private void GenerateManifestJson(
+        string outputDirectory, 
+        IEnumerable<string> modules, 
+        IEnumerable<string> types,
+        IEnumerable<string> requiredAssemblies
+    )
+    {
+        var content = System.Text.Json.JsonSerializer.Serialize(new ManifestJson()
+        {
+            Modules = [.. modules],
+            Types = [.. types],
+            RequiredAssemblies = [.. requiredAssemblies]
+        });
+        File.WriteAllText(Path.Combine(outputDirectory, "manifest.json"), content);
+    }
+
+    private void GenerateEntryPointFile(string outputDirectory, string assemblyName)
+    {
+        File.WriteAllText(Path.Combine(outputDirectory, "entrypoint.slipe"), assemblyName);
+    }
+
+    private void GenerateLuaFiles(string outputDirectory)
+    {
+        File.WriteAllText(Path.Combine(outputDirectory, "Lua/patches.lua"), CodeGenerationConstants.Patches);
+        File.WriteAllText(Path.Combine(outputDirectory, "Lua/main.lua"), CreateMainFile());
+    }
+
+    private string CreateMainFile()
+    {
+        if (compilation == null)
+            throw new Exception("Compilation is null, cannot create main.lua file.");
+
+        var assemblies = "";
+
+        var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken())
+            ?? throw new Exception("No entry point found, cannot create main.lua file.");
+
+        var entryPointClass = entryPoint.ContainingType.Name;
+        var entryPointNamespace = entryPoint.ContainingNamespace.ToDisplayString();
+
+        return CodeGenerationConstants.Main
+            .Replace("__ASSEMBLIES__", assemblies)
+            .Replace("__ENTRYPOINT__", $"{entryPointNamespace}.{entryPointClass}.{entryPoint.Name}()");
+    }
+
+    private void GenerateFullPackage(string outputDirectory, string type, IEnumerable<string> requiredAssemblies)
+    {
+        var meta = new XmlDocument();
+
+        var root = meta.CreateElement("meta");
+        meta.AppendChild(root);
+
+        AddScript(meta, root, "Lua/patches.lua", type);
+        AddScript(meta, root, "Lua/main.lua", type);
+
+        var luaFilesPerAssembly = new Dictionary<string, List<string>>();
+        var luaContainingAssemblies = new List<AssemblyInfo>();
+
+        foreach (var reference in compilation.References)
+        {
+            var assemblyPath = reference.Display;
+            if (string.IsNullOrEmpty(assemblyPath) || !File.Exists(assemblyPath))
+                continue;
+
+            var assemblyName = Path.GetFileName(assemblyPath).TrimEnd(".dll");
+
+            using var stream = File.OpenRead(assemblyPath);
+            using var peReader = new PEReader(stream);
+
+            if (peReader.HasMetadata)
             {
-                k = Math.Min(k, s[i].Length);
-                for (int j = 0; j < k; j++)
-                    if (s[i][j] != s[0][j])
+                var mdReader = peReader.GetMetadataReader();
+                foreach (var handle in mdReader.ManifestResources)
+                {
+                    var resource = mdReader.GetManifestResource(handle);
+                    var name = mdReader.GetString(resource.Name);
+                    if (name.EndsWith(".lua"))
                     {
-                        k = j;
-                        break;
+                        var luaIndex = name.IndexOf(".lua.", StringComparison.OrdinalIgnoreCase);
+                        var basePath = name.Substring(0, luaIndex);
+                        var scriptPath = name
+                            .Replace(basePath, "")
+                            .Replace(".", "/")
+                            .Replace("//", "/")
+                            .Replace("Lua/Dist/", $"Lua/Dist/{assemblyName}/");
+
+                        scriptPath = Regex.Replace(scriptPath, "/lua$", ".lua");
+                        scriptPath = Regex.Replace(scriptPath, "^/", "");
+
+                        if (!luaFilesPerAssembly.ContainsKey(assemblyName))
+                            luaFilesPerAssembly[assemblyName] = [];
+
+                        luaFilesPerAssembly[assemblyName].Add(scriptPath);
                     }
+                }
             }
-            return s[0].Substring(0, k);
-        }
 
-        private bool ShouldCompileToLua(CSharpCompilation compilation)
-        {
-            return compilation.SyntaxTrees.Any(x => 
-                x.ContainsAttribute(new string[] { "CompileToLua", "ClientEntryPoint", "ServerEntryPoint", "RequiresAssembly" }) 
-            );
-        }
-
-        private bool? DetermineIfIsServer(CSharpCompilation compilation)
-        {
-            var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
-            if (entryPoint != null)
+            if (luaFilesPerAssembly.ContainsKey(assemblyName))
             {
-                var method = entryPoint.GetDeclaringSyntaxNode();
-                var attributes = method.ChildNodes()
-                    .Where(x => x is AttributeListSyntax)
-                    .Select(x => (AttributeListSyntax)x)
-                    .SelectMany(x => x.ChildNodes());
+                var assemblyInfo = new AssemblyInfo(assemblyName, assemblyPath, luaFilesPerAssembly[assemblyName]);
 
-                if (attributes == null)
-                    return null;
+                assemblyInfo.LuaFiles = assemblyInfo.LuaFiles
+                    .OrderBy(x =>
+                    {
+                        if (MetaGenerationKnownFilePriority.PreUnknown.Contains(x))
+                            return MetaGenerationKnownFilePriority.PreUnknown.IndexOf(x) - 1000;
 
-                if (attributes.Any(x => (x as AttributeSyntax)?.Name.ToString() == "ServerEntryPoint"))
-                    return true;
+                        if (MetaGenerationKnownFilePriority.PostUnknown.Contains(x))
+                            return MetaGenerationKnownFilePriority.PostUnknown.IndexOf(x) + 1000;
 
-                if (attributes.Any(x => (x as AttributeSyntax)?.Name.ToString() == "ClientEntryPoint"))
-                    return false;
+
+                        if (x.EndsWith("manifest.lua"))
+                            return 10000;
+
+                        return 0;
+                    })
+                    .ToList();
+
+                luaContainingAssemblies.Add(assemblyInfo);
             }
-            return null;
         }
 
-        private IEnumerable<string> DetermineAdditionalRequiredAssemblies(CSharpCompilation compilation)
+        var dependenciesPerAssembly = new Dictionary<AssemblyInfo, List<AssemblyInfo>>();
+        foreach (var assembly in luaContainingAssemblies)
         {
-            var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
-            if (entryPoint != null)
+            var dependencies = GetDependencies(assembly.Path)
+                .Where(x => luaContainingAssemblies.Any(y => y.Name == x.Name))
+                .ToList();
+
+            dependenciesPerAssembly[assembly] = dependencies;
+        }
+
+        var resolvedAssemblies = new HashSet<string>();
+        while (luaContainingAssemblies.Any())
+        {
+            var nonDependantAssembly = luaContainingAssemblies
+                .FirstOrDefault(x => dependenciesPerAssembly[x].All(y => resolvedAssemblies.Contains(y.Name)));
+
+            if (nonDependantAssembly != null)
             {
-                var method = entryPoint.GetDeclaringSyntaxNode();
-                var attributes = method.ChildNodes()
-                    .Where(x => x is AttributeListSyntax)
-                    .Select(x => (AttributeListSyntax)x)
-                    .SelectMany(x => x.ChildNodes());
+                foreach (var file in nonDependantAssembly.LuaFiles)
+                    AddScript(meta, root, file, type);
 
-                if (attributes == null)
-                    return Enumerable.Empty<string>();
-
-                return attributes
-                    .Select(x => x as AttributeSyntax)
-                    .Where(x => x != null)
-                    .Where(x => x.Name.ToString() == "RequiresAssembly")
-                    .Select(x => x.ArgumentList.Arguments.First())
-                    .Select(x => x.Expression as LiteralExpressionSyntax)
-                    .Select(x => x.Token.ValueText);
+                resolvedAssemblies.Add(nonDependantAssembly.Name);
+                luaContainingAssemblies.Remove(nonDependantAssembly);
             }
-            return Enumerable.Empty<string>();
         }
 
-        private void GenerateManifestJson(
-            string outputDirectory, 
-            IEnumerable<string> modules, 
-            IEnumerable<string> types,
-            IEnumerable<string> requiredAssemblies
-        )
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var luaFiles = Directory.GetFiles(Path.Combine(currentDirectory, "Lua"), "*.lua", SearchOption.AllDirectories);
+        foreach (var luaFile in luaFiles)
         {
-            var content = JsonConvert.SerializeObject(new ManifestJson()
+            var relativePath = luaFile.Replace(currentDirectory + Path.DirectorySeparatorChar, "").Replace("\\", "/");
+            if (relativePath.EndsWith("Lua/patches.lua") || relativePath.EndsWith("Lua/main.lua"))
+                continue;
+
+            AddScript(meta, root, relativePath, type);
+        }
+
+        meta.Save(Path.Combine(outputDirectory, "meta.xml"));
+    }
+
+    private IEnumerable<AssemblyInfo> GetDependencies(string assemblyPath)
+    {
+        using var stream = File.OpenRead(assemblyPath);
+        using var peReader = new PEReader(stream);
+
+        if (peReader.HasMetadata)
+        {
+            var mdReader = peReader.GetMetadataReader();
+            var dependencies = mdReader.AssemblyReferences;
+
+            foreach (var handle in dependencies)
             {
-                Modules = modules.ToArray(),
-                Types = types.ToArray(),
-                RequiredAssemblies = requiredAssemblies.ToArray()
-            });
-            File.WriteAllText(Path.Combine(outputDirectory, "manifest.json"), content);
+                var aref = mdReader.GetAssemblyReference(handle);
+                var name = aref.GetAssemblyName();
+                yield return new AssemblyInfo(name.Name, name.FullName);
+            }
         }
+    }
 
-        private void GenerateEntryPointFile(string outputDirectory, string assemblyName)
-        {
-            File.WriteAllText(Path.Combine(outputDirectory, "entrypoint.slipe"), assemblyName);
-        }
+    private void AddScript(XmlDocument document, XmlElement parent, string path, string type)
+    {
+        var element = document.CreateElement("script");
+        element.SetAttribute("src", path);
+        element.SetAttribute("type", type);
+        parent.AppendChild(element);
+    }
 
-        private void GenerateLuaFiles(string outputDirectory)
-        {
-            File.WriteAllText(Path.Combine(outputDirectory, "Lua/patches.lua"), CodeGenerationConstants.Patches);
-            File.WriteAllText(Path.Combine(outputDirectory, "Lua/main.lua"), CreateMainFile());
-        }
-
-        private string CreateMainFile()
-        {
-            var assemblies = "";
-
-            var entryPoint = compilation.GetEntryPoint(new System.Threading.CancellationToken());
-            var entryPointClass = entryPoint.ContainingType.Name;
-            var entryPointNamespace = entryPoint.ContainingNamespace.ToDisplayString();
-
-            return CodeGenerationConstants.Main
-                .Replace("__ASSEMBLIES__", assemblies)
-                .Replace("__ENTRYPOINT__", $"{entryPointNamespace}.{entryPointClass}.{entryPoint.Name}()");
-        }
-
-        private void GenerateMetaXml(string outputDirectory, string type, IEnumerable<string> requiredAssemblies)
-        {
-            var meta = new XmlDocument();
-
-            var root = meta.CreateElement("meta");
-            meta.AppendChild(root);
-
-            AddScript(meta, root, "Lua/patches.lua", type);
-            AddScript(meta, root, "Lua/main.lua", type);
-
-            meta.Save(Path.Combine(outputDirectory, "meta.xml"));
-        }
-
-        private void AddScript(XmlDocument document, XmlElement parent, string path, string type)
-        {
-            var element = document.CreateElement("script");
-            element.SetAttribute("src", path);
-            element.SetAttribute("type", type);
-            parent.AppendChild(element);
-        }
+    private class AssemblyInfo(string name, string path, IEnumerable<string>? luaFiles = null)
+    {
+        public string Name { get; } = name;
+        public string Path { get; } = path;
+        public List<string> LuaFiles { get; set; } = new(luaFiles ?? []);
     }
 }

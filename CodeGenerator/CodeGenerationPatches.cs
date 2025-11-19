@@ -1,46 +1,46 @@
-﻿namespace SlipeLua.CodeGenerator
+﻿namespace SlipeLua.CodeGenerator;
+
+public class CodeGenerationPatches
 {
-    public class CodeGenerationPatches
-    {
-        public static string All => $@"
-function prePatches()
-    {string.Join("\n", PrePatches)}
-end
+    public static string All => $$"""""
+        function prePatches()
+            {{string.Join("\n", PrePatches)}}
+        end
 
-local patches = {{}}
+        local patches = {}
 
-function duringPatches(t, key, value)
+        function duringPatches(t, key, value)
 
-    { string.Join("\n", DuringPatches)}
+            {{ string.Join("\n", DuringPatches)}}
 
-    rawset(t, key, value)
-end
+            rawset(t, key, value)
+        end
 
-function postPatches()
-    {string.Join("\n", PostPatches)}
-end
+        function postPatches()
+            {{ string.Join("\n", PostPatches )}}
+        end
 
-prePatches()
-";
+        prePatches()
+        """"";
 
-        public static string[] PrePatches => new string[]
-        {
-            InitBitApi,
-            EmptyRequire,
-            AddGlobalMetatable
-        };
+    public static string[] PrePatches =>
+    [
+        InitBitApi,
+        EmptyRequire,
+        AddGlobalMetatable
+    ];
 
-        public static string[] DuringPatches => new string[]
-        {
-            SystemPatches
-        };
+    public static string[] DuringPatches =>
+    [
+        SystemPatches
+    ];
 
-        public static string[] PostPatches => new string[]
-        {
-            RemoveGlobalMetatable
-        };
+    public static string[] PostPatches =>
+    [
+        RemoveGlobalMetatable
+    ];
 
-        public static string InitBitApi => @"
+    public static string InitBitApi => @"
     bit = {
         bnot = bitNot,
         band = bitAnd,
@@ -50,19 +50,17 @@ prePatches()
         rshift = bitRShift
     }";
 
-        public static string EmptyRequire => @"
+    public static string EmptyRequire => @"
     function require() end";
 
-        public static string CSharpLuaLoadStringRequire => @"
+    public static string CSharpLuaLoadStringRequire => @"
     function require(path)
         local slashedPath = path:gsub(""%."", ""/"")
         local unslashedBeginPath = slashedPath:gsub(""CoreSystem/Lua"", ""CoreSystem.Lua"")
         local fixedExtensionPath = unslashedBeginPath:gsub(""/lua"", "".lua"")
         local addedExtensionPath = fixedExtensionPath .. "".lua""
         local fullpath = addedExtensionPath:gsub("".lua.lua"", "".lua"")
-        local file = fileOpen(fullpath)
-        local content = fileRead(file, fileGetSize(file))
-        fileClose(file)
+        local content = fileGetContents(fullpath, true)
         local comment = ""--[["" .. path .. ""]]""
         local result = loadstring(comment..content)()
         duringPatches()
@@ -70,14 +68,14 @@ prePatches()
     end
 ";
 
-        public static string AddGlobalMetatable = @"
+    public static string AddGlobalMetatable = @"
     setmetatable(_G, {
         __newindex = function(...) 
             duringPatches(...)
         end
     })";
 
-        public static string SystemPatches => @"    
+    public static string SystemPatches => @"    
     if (not patches.system and key == ""System"") then
         if (not getmetatable(value)) then
             setmetatable(value, {})
@@ -131,7 +129,6 @@ prePatches()
     end
 ";
 
-        public static string RemoveGlobalMetatable = @"
+    public static string RemoveGlobalMetatable = @"
     setmetatable(_G, nil)";
-    }
 }

@@ -1,38 +1,45 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-	  
-	  <Version>0.1.18</Version>
-	  <Authors>Slipe</Authors>
-	  <Company></Company>
-	  <Product>Slipe Lua Source Generators</Product>
-	  <PackageProjectUrl>https://github.com/mta-slipe/Slipe-Lua-SourceGenerator</PackageProjectUrl>
-	  <PackageIcon>slipe-logo.png</PackageIcon>
-	  <RepositoryUrl>https://github.com/mta-slipe/Slipe-Lua-SourceGenerator</RepositoryUrl>
-	  <RepositoryType>git</RepositoryType>
-	  <PackageLicenseFile>LICENSE</PackageLicenseFile>
-	  <Description>Source generators for C# to Lua transpilation</Description>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+		
+		<Version>0.1.18</Version>
+		<Authors>Slipe</Authors>
+		<Company></Company>
+		<Product>Slipe Lua Source Generators</Product>
+		<PackageProjectUrl>https://github.com/mta-slipe/Slipe-Lua-SourceGenerator</PackageProjectUrl>
+		<PackageIcon>slipe-logo.png</PackageIcon>
+		<RepositoryUrl>https://github.com/mta-slipe/Slipe-Lua-SourceGenerator</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseFile>LICENSE</PackageLicenseFile>
+		<Description>Source generators for C# to Lua transpilation</Description>
+
+		<Nullable>enable</Nullable>
+		<LangVersion>Latest</LangVersion>
+	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.0.1" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="all" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" PrivateAssets="all" GeneratePathProperty="true" />
+		<PackageReference Include="SourceGenerator.Foundations" Version="2.0.13" />
+		<PackageReference Include="System.Text.Json" Version="10.0.0" PrivateAssets="all" />
 
 		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="$(PkgNewtonsoft_Json)\lib\netstandard2.0\*.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<None Include="$(OutputPath)\System.Text.Json.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\CSharp.lua\CSharp.lua\CSharp.lua\CSharp.lua.csproj" GeneratePathProperty="true" PrivateAssets="All" />
+		<ProjectReference Include="..\CSharp.lua\CSharp.lua\CSharp.lua\CSharp.lua.csproj" GeneratePathProperty="true" PrivateAssets="All" />
+		<!--<None Include="$(OutputPath)\CSharp.Lua.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />-->
+		<None Include="..\CSharp.lua\CSharp.lua\CSharp.lua\bin\$(Configuration)\netstandard2.0\CSharp.lua.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 	</ItemGroup>
 
-	<PropertyGroup>
+	<!--<PropertyGroup>
 		<GetTargetPathDependsOn>$(GetTargetPathDependsOn);GetDependencyTargetPaths</GetTargetPathDependsOn>
-	</PropertyGroup>
+	</PropertyGroup>-->
 
-	<Target Name="GetDependencyTargetPaths" AfterTargets="ResolvePackageDependenciesForBuild">
+	<!--<Target Name="GetDependencyTargetPaths" AfterTargets="ResolvePackageDependenciesForBuild">
 		<ItemGroup>
 			<TargetPathWithTargetPlatformMoniker Include="@(ResolvedCompileFileDefinitions)" IncludeRuntimeDependency="false" />
 		</ItemGroup>
@@ -46,18 +53,18 @@
 
 	<Target Name="CopyProjectReferencesToPackage" DependsOnTargets="BuildOnlySettings;ResolveReferences">
 		<ItemGroup>
-			<!-- Filter out unnecessary files -->
+			--><!-- Filter out unnecessary files --><!--
 			<_ReferenceCopyLocalPaths Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference')-&gt;WithMetadataValue('PrivateAssets', 'All'))" />
 		</ItemGroup>
 
-		<!-- Print batches for debug purposes -->
+		--><!-- Print batches for debug purposes --><!--
 		<Message Text="Batch for .nupkg: ReferenceCopyLocalPaths = @(_ReferenceCopyLocalPaths), ReferenceCopyLocalPaths.DestinationSubDirectory = %(_ReferenceCopyLocalPaths.DestinationSubDirectory) Filename = %(_ReferenceCopyLocalPaths.Filename) Extension = %(_ReferenceCopyLocalPaths.Extension)" Importance="High" Condition="'@(_ReferenceCopyLocalPaths)' != ''" />
 
 		<ItemGroup>
-			<!-- Add file to package with consideration of sub folder. If empty, the root folder is chosen. -->
+			--><!-- Add file to package with consideration of sub folder. If empty, the root folder is chosen. --><!--
 			<BuildOutputInPackage Include="@(_ReferenceCopyLocalPaths)" TargetPath="../../../analyzers/dotnet/cs/%(_ReferenceCopyLocalPaths.DestinationSubDirectory)" />
 		</ItemGroup>
-	</Target>
+	</Target>-->
 
 	<ItemGroup>
 		<None Include="..\LICENSE">

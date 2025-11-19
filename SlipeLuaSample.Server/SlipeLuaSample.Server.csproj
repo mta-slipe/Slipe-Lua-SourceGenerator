@@ -2,20 +2,22 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net10.0</TargetFramework>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\CodeGenerator\SlipeLua.CodeGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-		<ProjectReference Include="..\slipe-core\Slipe\Core\Source\SlipeClient\SlipeClient.csproj" />
+		<ProjectReference Include="..\slipe-core\Slipe\Core\Source\SlipeServer\SlipeServer.csproj" />
+		<ProjectReference Include="..\SlipeLua\SlipeLua.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Lua\*">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</None>
+		<EmbeddedResource Include="Lua\**\*" CopyToOutputDirectory="Always" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<None Update="meta.xml">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</None>
